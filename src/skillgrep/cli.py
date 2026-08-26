@@ -8,7 +8,6 @@ import shutil
 import stat
 import sys
 import tempfile
-import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence, TextIO
@@ -253,7 +252,7 @@ def load_skills(
     for name, root in sorted(registries.items()):
         if not _resolved_root(root).is_dir():
             print(
-                f"warning: registry {name!r} is unavailable; use 'skillgrep list --paths' to inspect it",
+                f"warning: registry {name!r} is unavailable; use 'skillgrep ls --paths' to inspect it",
                 file=stderr,
             )
             counts[name] = 0
@@ -319,9 +318,14 @@ def _styled(value: str, code: str, stream: TextIO) -> str:
     return f"\033[{code}m{value}\033[0m" if _color(stream) else value
 
 
-def _wrapped_description(description: str, stream: TextIO) -> str:
-    width = max(40, min(100, shutil.get_terminal_size((88, 20)).columns))
-    return textwrap.fill(description, width=width, initial_indent="   ", subsequent_indent="   ")
+def _result_line(skill: Skill, stream: TextIO) -> str:
+    width = max(60, min(120, shutil.get_terminal_size((120, 20)).columns))
+    description = " ".join(skill.description.split())
+    available = max(1, width - len(skill.identifier) - 2)
+    if len(description) > available:
+        description = description[: max(1, available - 1)].rstrip() + "…"
+    identifier = _styled(skill.identifier, "36", stream)
+    return f"{identifier}  {description}"
 
 
 def _resolve_skill(skills: list[Skill], requested: str) -> Skill:
@@ -355,7 +359,7 @@ def command_add(args: argparse.Namespace) -> int:
         raise SkillgrepError(f"no valid SKILL.md files found under {root}")
     registries[name] = _compact_home(root)
     write_config(config, registries)
-    print(f"Added {name} ({len(skills)} {_plural(len(skills), 'skill')}).")
+    print(f"added  {name}  {len(skills)}")
     return 0
 
 
@@ -377,19 +381,6 @@ def command_list(args: argparse.Namespace) -> int:
         print("No registries configured. Use 'skillgrep add PATH'.")
         return 0
     _, counts = load_skills(registries)
-    if args.json:
-        values = [
-            {
-                "name": name,
-                "skills": counts[name],
-                **({"path": str(_resolved_root(root))} if args.paths else {}),
-            }
-            for name, root in sorted(registries.items())
-        ]
-        print(json.dumps({"registries": values}, ensure_ascii=False, indent=2))
-        return 0
-    total = sum(counts.values())
-    print(f"{total} {_plural(total, 'skill')} in {len(registries)} {_plural(len(registries), 'registry')}\n")
     for name, root in sorted(registries.items()):
         suffix = f"  {_resolved_root(root)}" if args.paths else ""
         print(f"{name}  {counts[name]}{suffix}")
@@ -405,78 +396,24 @@ def command_search(args: argparse.Namespace) -> int:
     query = " ".join(args.query).strip()
     matches = search(skills, query)
     shown = matches[: args.top]
-    if args.json:
-        results = [
-            {
-                "id": skill.identifier,
-                "name": skill.name,
-                "description": skill.description,
-                "registry": skill.registry,
-                "score": score,
-            }
-            for score, skill in shown
-        ]
-        print(
-            json.dumps(
-                {"query": query, "results": results, "totalResults": len(matches)},
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        return 0
     if not matches:
-        print("No matching skills.")
+        print("No matches.")
         return 0
-    heading = f"{len(matches)} {_plural(len(matches), 'match')}"
-    if len(shown) != len(matches):
-        heading = f"Showing {len(shown)} of {heading}"
-    print(_styled(heading, "1", sys.stdout) + "\n")
-    for index, (_, skill) in enumerate(shown, 1):
-        identifier = _styled(skill.identifier, "36", sys.stdout)
-        print(f"{index}. {identifier}")
-        print(_wrapped_description(skill.description, sys.stdout))
-        if index != len(shown):
-            print()
+    for _, skill in shown:
+        print(_result_line(skill, sys.stdout))
     return 0
 
 
-def command_show(args: argparse.Namespace) -> int:
+def command_path(args: argparse.Namespace) -> int:
     config = resolve_config_path(args.config)
     registries = read_config(config)
     if not registries:
         raise SkillgrepError("no registries configured; use 'skillgrep add PATH'")
     skills, _ = load_skills(registries)
-    skill = _resolve_skill(skills, args.skill)
-    if args.path:
+    selected = [_resolve_skill(skills, requested) for requested in args.skills]
+    for skill in selected:
         print(skill.path)
-        return 0
-    if args.json:
-        print(
-            json.dumps(
-                {
-                    "id": skill.identifier,
-                    "name": skill.name,
-                    "description": skill.description,
-                    "registry": skill.registry,
-                    "path": str(skill.path),
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
-        return 0
-    print(_styled(skill.identifier, "1;36", sys.stdout))
-    print(_wrapped_description(skill.description, sys.stdout))
-    print(f"\n{skill.path}")
     return 0
-
-
-def _plural(count: int, singular: str) -> str:
-    if count == 1:
-        return singular
-    if singular == "registry":
-        return "registries"
-    return singular + "es" if singular == "match" else singular + "s"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -497,27 +434,27 @@ def build_parser() -> argparse.ArgumentParser:
     add.add_argument("--name", help="stable registry name (default: directory name)")
     add.set_defaults(handler=command_add)
 
-    remove = commands.add_parser("remove", help="remove a registry from the config")
+    remove = commands.add_parser("rm", help="remove a registry from the config")
     remove.add_argument("name", help="registry name")
     remove.set_defaults(handler=command_remove)
 
-    listing = commands.add_parser("list", help="list registries and skill counts")
+    listing = commands.add_parser("ls", help="list registries and skill counts")
     listing.add_argument("--paths", action="store_true", help="also reveal registry paths")
-    listing.add_argument("--json", action="store_true", help="emit JSON")
     listing.set_defaults(handler=command_list)
 
-    searching = commands.add_parser("search", help="search names and descriptions")
+    searching = commands.add_parser("q", help="query names and descriptions")
     searching.add_argument("query", nargs="+", help="search terms")
     searching.add_argument("--top", type=int, default=8, help="maximum results (default: 8)")
-    searching.add_argument("--json", action="store_true", help="emit JSON without paths")
     searching.set_defaults(handler=command_search)
 
-    show = commands.add_parser("show", help="resolve one skill")
-    show.add_argument("skill", help="registry:name, or an unambiguous skill name")
-    output = show.add_mutually_exclusive_group()
-    output.add_argument("--path", action="store_true", help="print only the SKILL.md path")
-    output.add_argument("--json", action="store_true", help="emit JSON")
-    show.set_defaults(handler=command_show)
+    path = commands.add_parser("path", help="print selected SKILL.md paths")
+    path.add_argument(
+        "skills",
+        nargs="+",
+        metavar="SKILL",
+        help="registry:name, or an unambiguous skill name",
+    )
+    path.set_defaults(handler=command_path)
     return parser
 
 

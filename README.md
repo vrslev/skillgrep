@@ -2,43 +2,28 @@
 
 # skillgrep
 
-Search local [Agent Skill](https://agentskills.io/) collections without loading
-them all into every agent session.
+Search local [Agent Skill](https://agentskills.io/) collections without loading them all into every agent session.
 
-Agents normally discover skills by advertising each enabled skill's name and
-description up front, then loading its full `SKILL.md` when selected. That works
-well for a small active set. It becomes noisy when a person or team keeps a much
-larger private collection.
+Agents normally advertise every enabled skill's name and description, then load the selected `SKILL.md` on demand. `skillgrep` keeps infrequent private or team collections outside that catalog. One routing skill searches their metadata and resolves only the chosen file.
 
-`skillgrep` exposes one routing skill. It searches metadata in trusted local
-repositories, returns compact results without paths, and resolves only the
-selected `SKILL.md`. It does not clone, update, install, or execute registered
-skills.
+It does not clone, update, install, or execute registered skills.
 
 ## Install
-
-Install the routing skill with any Agent Skills-compatible client:
 
 ```console
 $ npx skills add vrslev/skillgrep
 ```
 
-The skill runs its bundled Python package with
-[`uvx`](https://docs.astral.sh/uv/guides/tools/). The Python package has no
-runtime dependencies.
+The skill invokes the dependency-free CLI with `uvx skillgrep`.
 
 ## Configure
 
-Register a repository or directory containing one or more `SKILL.md` files:
-
 ```console
-$ uvx --from git+https://github.com/vrslev/skillgrep skillgrep add ~/code/team-skills --name team
-Added team (2 skills).
+$ uvx skillgrep add ~/code/team-skills --name team
+added  team  2
 ```
 
-The name becomes the stable namespace for results, such as
-`team:release-workflow`. `skillgrep` derives it from the directory name when
-`--name` is omitted.
+The name becomes the stable namespace in results such as `team:release-workflow`. It defaults to the directory name.
 
 Configuration follows the XDG application convention:
 
@@ -46,9 +31,7 @@ Configuration follows the XDG application convention:
 ${XDG_CONFIG_HOME:-~/.config}/skillgrep/config.json
 ```
 
-There is no standard Agent Skills configuration directory. The generated file
-is deliberately application-specific and is created with mode `600` on POSIX
-systems. Its complete shape is:
+There is no standard Agent Skills configuration directory. Normal setup uses `add`, `rm`, and `ls`; manual configuration is optional:
 
 ```json
 {
@@ -60,63 +43,45 @@ systems. Its complete shape is:
 }
 ```
 
-Normal setup does not require editing this file. Use `skillgrep add`,
-`skillgrep remove`, and `skillgrep list` instead. Set `SKILLGREP_CONFIG` or pass
-`--config` to use another location.
+The file is created with mode `600` on POSIX systems. Set `SKILLGREP_CONFIG` or pass `--config` to use another location.
 
 ## Example
 
 ```console
-$ uvx --from git+https://github.com/vrslev/skillgrep skillgrep search "release incident"
-Showing 2 of 5 matches
+$ uvx skillgrep q "release incident"
+team:incident-release-check  Verify release state and collect incident evidence before taking action.
+personal:release-notes  Draft concise release notes from a local Git history.
 
-1. team:incident-release-check
-   Verify release state and collect incident evidence before taking action.
-
-2. personal:release-notes
-   Draft concise release notes from a local Git history.
-
-$ uvx --from git+https://github.com/vrslev/skillgrep skillgrep show team:incident-release-check --path
+$ uvx skillgrep path team:incident-release-check personal:release-notes
 /Users/example/code/team-skills/delivery/incident-release-check/SKILL.md
+/Users/example/code/personal-skills/writing/release-notes/SKILL.md
 ```
 
-Search results omit paths, repository remotes, and configuration locations.
-`show` reveals the path of one selected skill so the agent can read it on
-demand. Results are ranked deterministically from the query, skill name, and
-description; no embeddings or model calls are involved.
+`q` returns at most eight one-line matches by default; `--top N` changes the limit. It omits paths, remotes, and configuration locations. `path` reveals only the selected files. Ranking is deterministic and uses the query, skill name, and description—no embeddings or model calls.
 
 ## Commands
 
 ```text
-skillgrep add PATH [--name NAME]       Register a local collection
-skillgrep remove NAME                  Remove a registry from the config
-skillgrep list [--paths] [--json]      List registries and skill counts
-skillgrep search QUERY [--top N]       Search names and descriptions
-skillgrep show REGISTRY:SKILL --path   Resolve one selected SKILL.md
+skillgrep add PATH [--name NAME]  Register a local collection
+skillgrep rm NAME                 Remove a registry
+skillgrep ls [--paths]            List registries and skill counts
+skillgrep q QUERY [--top N]       Query names and descriptions
+skillgrep path SKILL [SKILL ...]  Print selected SKILL.md paths
 ```
 
-`search --json` remains path-free. `show --json` includes the selected path.
-Registry-qualified identifiers prevent skills with the same name in different
-collections from overwriting or silently shadowing one another. Duplicate names
-inside one registry are reported as errors.
+Registry-qualified identifiers prevent collisions between collections. Duplicate names inside one registry are errors.
 
 ## Privacy and trust
 
-- Runtime search reads only explicitly registered local directories and makes
-  no network requests.
-- Installation through GitHub or `npx skills` naturally requires network
-  access; runtime discovery does not.
-- Registry paths stay in the local XDG config rather than agent settings or a
-  public dotfiles repository.
-- Search results disclose descriptions because the agent needs them for
-  routing. Do not put secrets in skill frontmatter.
-- Registered collections must be trusted. A selected `SKILL.md` becomes agent
-  instructions when it is read.
+- Runtime commands read only explicitly registered local directories and make no network requests. Installation and `uvx` package retrieval require network access.
+- Registry paths stay in the local XDG config rather than agent settings or a public dotfiles repository.
+- Descriptions are search metadata; do not put secrets in skill frontmatter.
+- Registered collections must be trusted because selected files become agent instructions.
 - Symlinked skill files resolving outside their registered root are ignored.
 
 ## How this differs from native discovery
 
-The comparison below reflects documented behavior available on **2026-08-26**.
+The comparison reflects documented behavior available on **2026-08-26**.
 
 | System | Initial discovery | Detailed instructions |
 | --- | --- | --- |
@@ -124,20 +89,6 @@ The comparison below reflects documented behavior available on **2026-08-26**.
 | [Claude Code](https://code.claude.com/docs/en/skills) | Metadata for model-invokable skills is available for routing; skills may also be manual-only. | Skill content loads when invoked. |
 | [OpenCode](https://opencode.ai/docs/skills/) | Permitted names and descriptions appear in the native `skill` tool. | The `skill` tool loads selected content. |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/skills.md) | Names and descriptions of enabled skills enter the system prompt. | `activate_skill` loads selected content after consent. |
-| `skillgrep` | Only the `skillgrep` routing skill must be installed. Registered collections remain outside native discovery. | The agent searches locally and resolves one chosen file. |
+| `skillgrep` | Only its routing skill is installed. Registered collections remain outside native discovery. | The agent queries locally and resolves one chosen file. |
 
-Native controls continue to be preferable for a small, frequently used skill
-set. `skillgrep` is for the larger tail that should remain searchable without
-being advertised in every session. It is agent-mediated discovery, not a patch
-to an agent's native prompt assembler, so explicit native invocation of a hidden
-skill is unavailable until the agent resolves it.
-
-## Development
-
-```console
-$ uv sync --group dev
-$ uv run pytest -q
-$ uv build
-```
-
-The runtime deliberately uses only the Python standard library.
+Native discovery remains preferable for a small, frequently used set. `skillgrep` covers the larger searchable tail. It is agent-mediated discovery, not a patch to an agent's native prompt assembler.
