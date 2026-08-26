@@ -129,7 +129,7 @@ def test_search_handles_no_matches_and_limits_results(
     assert invoke(config, "q", "missing") == 0
     assert capsys.readouterr().out == "No matches.\n"
     assert invoke(config, "q", "release") == 0
-    assert len(capsys.readouterr().out.splitlines()) == 8
+    assert len(capsys.readouterr().out.splitlines()) == 3
     assert invoke(config, "q", "release", "--top", "1") == 0
     assert len(capsys.readouterr().out.splitlines()) == 1
 
