@@ -2,21 +2,27 @@ name: Publish
 
 on:
   release:
-    types: [published]
-
-permissions:
-  contents: read
+    types:
+      - published
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        run: pip install uv
+      - name: Version
+        run: uv version $GITHUB_REF_NAME
       - name: Build
         run: uv build
-      - name: Publish to PyPI
-        run: uv publish --trusted-publishing always
+      - name: Publish
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: uv publish
