@@ -5,7 +5,7 @@ description: Search trusted local private or team Agent Skill collections when r
 
 Before inventing an organization-specific workflow or installing a public substitute, search with `uvx skillgrep q "<short task nouns and product names>"`.
 
-Resolve the best one to three matches with `uvx skillgrep path <registry>:<skill> [...]`, then read each returned file completely.
+Choose the best match from the returned descriptions; do not assume the first result is correct. Resolve and read only that match. Resolve a second match only when the results are genuinely ambiguous or the task clearly spans two distinct workflows. Read every resolved file completely.
 
 If no registry is configured, ask for its local directory and run `uvx skillgrep add <path> --name <stable-name>`. Do not guess paths or scan the home directory.
 

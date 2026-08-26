@@ -444,7 +444,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     searching = commands.add_parser("q", help="query names and descriptions")
     searching.add_argument("query", nargs="+", help="search terms")
-    searching.add_argument("--top", type=int, default=8, help="maximum results (default: 8)")
+    searching.add_argument("--top", type=int, default=3, help="maximum results (default: 3)")
     searching.set_defaults(handler=command_search)
 
     path = commands.add_parser("path", help="print selected SKILL.md paths")

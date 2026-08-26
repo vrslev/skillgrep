@@ -57,7 +57,7 @@ $ uvx skillgrep path team:incident-release-check personal:release-notes
 /Users/example/code/personal-skills/writing/release-notes/SKILL.md
 ```
 
-`q` returns at most eight one-line matches by default; `--top N` changes the limit. It omits paths, remotes, and configuration locations. `path` reveals only the selected files. Ranking is deterministic and uses the query, skill name, and description—no embeddings or model calls.
+`q` returns at most three one-line matches by default; `--top N` changes the limit. It omits paths, remotes, and configuration locations. `path` reveals only the selected files. Ranking is deterministic and uses the query, skill name, and description—no embeddings or model calls.
 
 ## Commands
 
