@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import shutil
 import stat
 import sys
@@ -401,6 +402,16 @@ def command_search(args: argparse.Namespace) -> int:
         return 0
     for _, skill in shown:
         print(_result_line(skill, sys.stdout))
+    command = ["skillgrep"]
+    if args.config:
+        command.extend(["--config", args.config])
+    command.append("path")
+    sys.stdout.flush()
+    print(
+        f"Next: {shlex.join(command)} <registry:skill> [<registry:skill> ...] "
+        "(choose one or more results, then read each returned SKILL.md).",
+        file=sys.stderr,
+    )
     return 0
 
 
