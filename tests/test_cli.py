@@ -176,10 +176,10 @@ def test_query_hint_resolves_chosen_match(
     assert str(second) not in captured.err
 
     arguments = shlex.split(command)
-    assert arguments[:2] == ["uvx", "skillgrep"]
+    assert arguments[0] == "skillgrep"
     assert arguments[-2:] == ["path", "<registry:skill>"]
     arguments[-1] = "two:shared"
-    assert main(arguments[2:]) == 0
+    assert main(arguments[1:]) == 0
     resolved = capsys.readouterr()
     assert resolved.out == f"{selected_path}\n"
     assert resolved.err == ""

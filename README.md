@@ -51,7 +51,7 @@ The file is created with mode `600` on POSIX systems. Set `SKILLGREP_CONFIG` or 
 $ uvx skillgrep q "release incident"
 team:incident-release-check  Verify release state and collect incident evidence before taking action.
 personal:release-notes  Draft concise release notes from a local Git history.
-Next: uvx skillgrep path <registry:skill> (choose a result, then read the returned SKILL.md).
+Next: skillgrep path <registry:skill> (choose a result, then read the returned SKILL.md).
 
 $ uvx skillgrep path team:incident-release-check
 /Users/example/code/team-skills/delivery/incident-release-check/SKILL.md

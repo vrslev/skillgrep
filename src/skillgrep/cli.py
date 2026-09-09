@@ -402,7 +402,7 @@ def command_search(args: argparse.Namespace) -> int:
         return 0
     for _, skill in shown:
         print(_result_line(skill, sys.stdout))
-    command = ["uvx", "skillgrep"]
+    command = ["skillgrep"]
     if args.config:
         command.extend(["--config", args.config])
     command.append("path")
