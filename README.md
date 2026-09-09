@@ -51,13 +51,15 @@ The file is created with mode `600` on POSIX systems. Set `SKILLGREP_CONFIG` or 
 $ uvx skillgrep q "release incident"
 team:incident-release-check  Verify release state and collect incident evidence before taking action.
 personal:release-notes  Draft concise release notes from a local Git history.
+Next: uvx skillgrep path <registry:skill> (choose a result, then read the returned SKILL.md).
 
-$ uvx skillgrep path team:incident-release-check personal:release-notes
+$ uvx skillgrep path team:incident-release-check
 /Users/example/code/team-skills/delivery/incident-release-check/SKILL.md
-/Users/example/code/personal-skills/writing/release-notes/SKILL.md
 ```
 
-`q` returns at most three one-line matches by default; `--top N` changes the limit. It omits paths, remotes, and configuration locations. `path` reveals only the selected files. Ranking is deterministic and uses the query, skill name, and description—no embeddings or model calls.
+`q` returns at most three one-line matches by default; `--top N` changes the limit. Result lines on stdout omit paths, remotes, and configuration locations. Successful searches also print a next-command hint to stderr, preserving an explicit `--config` argument when supplied. Replace `<registry:skill>` with the chosen result's identifier, run the command, then read the returned `SKILL.md` completely. Searches with no matches print no hint.
+
+`path` reveals only the selected files. Ranking is deterministic and uses the query, skill name, and description—no embeddings or model calls.
 
 ## Commands
 

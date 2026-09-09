@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import stat
 from pathlib import Path
 
@@ -127,11 +128,61 @@ def test_search_handles_no_matches_and_limits_results(
     capsys.readouterr()
 
     assert invoke(config, "q", "missing") == 0
-    assert capsys.readouterr().out == "No matches.\n"
+    captured = capsys.readouterr()
+    assert captured.out == "No matches.\n"
+    assert captured.err == ""
     assert invoke(config, "q", "release") == 0
     assert len(capsys.readouterr().out.splitlines()) == 3
     assert invoke(config, "q", "release", "--top", "1") == 0
     assert len(capsys.readouterr().out.splitlines()) == 1
+
+
+@pytest.mark.parametrize("config_source", ["default", "flag", "env"])
+def test_query_hint_resolves_chosen_match(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    config_source: str,
+) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("SKILLGREP_CONFIG", raising=False)
+    config = (
+        default_config_path()
+        if config_source == "default"
+        else tmp_path / "custom config's.json"
+    )
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    make_skill(first, "shared", "shared", "First shared skill.")
+    selected_path = make_skill(second, "shared", "shared", "Second shared skill.")
+    assert invoke(config, "add", str(first), "--name", "one") == 0
+    assert invoke(config, "add", str(second), "--name", "two") == 0
+    capsys.readouterr()
+
+    if config_source == "env":
+        monkeypatch.setenv("SKILLGREP_CONFIG", str(config))
+    options = ["--config", str(config)] if config_source == "flag" else []
+    assert main([*options, "q", "shared"]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.splitlines() == [
+        "one:shared  First shared skill.",
+        "two:shared  Second shared skill.",
+    ]
+    assert len(captured.err.splitlines()) == 1
+    assert captured.err.startswith("Next: ")
+    command, instruction = captured.err.removeprefix("Next: ").split(" (", 1)
+    assert instruction == "choose a result, then read the returned SKILL.md).\n"
+    assert str(first) not in captured.err
+    assert str(second) not in captured.err
+
+    arguments = shlex.split(command)
+    assert arguments[:2] == ["uvx", "skillgrep"]
+    assert arguments[-2:] == ["path", "<registry:skill>"]
+    arguments[-1] = "two:shared"
+    assert main(arguments[2:]) == 0
+    resolved = capsys.readouterr()
+    assert resolved.out == f"{selected_path}\n"
+    assert resolved.err == ""
 
 
 def test_path_resolves_selected_skills_and_rejects_ambiguous_name(
