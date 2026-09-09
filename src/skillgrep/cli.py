@@ -408,8 +408,8 @@ def command_search(args: argparse.Namespace) -> int:
     command.append("path")
     sys.stdout.flush()
     print(
-        f"Next: {shlex.join(command)} <registry:skill> "
-        "(choose a result, then read the returned SKILL.md).",
+        f"Next: {shlex.join(command)} <registry:skill> [<registry:skill> ...] "
+        "(choose one or more results, then read each returned SKILL.md).",
         file=sys.stderr,
     )
     return 0

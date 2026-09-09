@@ -138,11 +138,13 @@ def test_search_handles_no_matches_and_limits_results(
 
 
 @pytest.mark.parametrize("config_source", ["default", "flag", "env"])
-def test_query_hint_resolves_chosen_match(
+@pytest.mark.parametrize("selected", [("two:shared",), ("two:shared", "one:shared")])
+def test_query_hint_resolves_chosen_matches(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
     config_source: str,
+    selected: tuple[str, ...],
 ) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     monkeypatch.delenv("SKILLGREP_CONFIG", raising=False)
@@ -153,8 +155,10 @@ def test_query_hint_resolves_chosen_match(
     )
     first = tmp_path / "first"
     second = tmp_path / "second"
-    make_skill(first, "shared", "shared", "First shared skill.")
-    selected_path = make_skill(second, "shared", "shared", "Second shared skill.")
+    paths = {
+        "one:shared": make_skill(first, "shared", "shared", "First shared skill."),
+        "two:shared": make_skill(second, "shared", "shared", "Second shared skill."),
+    }
     assert invoke(config, "add", str(first), "--name", "one") == 0
     assert invoke(config, "add", str(second), "--name", "two") == 0
     capsys.readouterr()
@@ -171,17 +175,17 @@ def test_query_hint_resolves_chosen_match(
     assert len(captured.err.splitlines()) == 1
     assert captured.err.startswith("Next: ")
     command, instruction = captured.err.removeprefix("Next: ").split(" (", 1)
-    assert instruction == "choose a result, then read the returned SKILL.md).\n"
+    assert instruction == "choose one or more results, then read each returned SKILL.md).\n"
     assert str(first) not in captured.err
     assert str(second) not in captured.err
 
     arguments = shlex.split(command)
     assert arguments[0] == "skillgrep"
-    assert arguments[-2:] == ["path", "<registry:skill>"]
-    arguments[-1] = "two:shared"
+    assert arguments[-4:] == ["path", "<registry:skill>", "[<registry:skill>", "...]"]
+    arguments[-3:] = selected
     assert main(arguments[1:]) == 0
     resolved = capsys.readouterr()
-    assert resolved.out == f"{selected_path}\n"
+    assert resolved.out.splitlines() == [str(paths[identifier]) for identifier in selected]
     assert resolved.err == ""
 
 
